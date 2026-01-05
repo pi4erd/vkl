@@ -854,6 +854,10 @@ impl Texture2d {
         self.format
     }
 
+    pub fn extent(&self) -> vk::Extent3D {
+        self.extent
+    }
+
     pub fn allocate_memory(
         &mut self,
         properties: vk::MemoryPropertyFlags,

@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 pub mod debug_utils;
 pub mod alloc;
 pub mod piler;
