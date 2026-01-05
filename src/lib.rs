@@ -127,8 +127,6 @@ pub struct Instance {
     portability: bool,
 }
 
-static mut USER_DEBUG_CALLBACK: Option<DebugCallback> = None;
-
 impl Instance {
     pub fn new(
         entry: Entry,
@@ -250,12 +248,23 @@ impl Instance {
         severity: vk::DebugUtilsMessageSeverityFlagsEXT,
         type_flags: vk::DebugUtilsMessageTypeFlagsEXT,
         callback_data: *const vk::DebugUtilsMessengerCallbackDataEXT,
-        _user_data: *mut std::ffi::c_void,
+        user_data: *mut std::ffi::c_void,
     ) -> vk::Bool32 {
-        if let Some(callback) = unsafe { USER_DEBUG_CALLBACK } {
-            let callback_data = unsafe {
-                callback_data.as_ref()
-            }.expect("Callback data was null");
+        let instance: &Self;
+        if let Some(i) = unsafe { (user_data as *mut Self).as_ref() } {
+            instance = i;
+        } else {
+            log::error!("BUG: user_data was NULL in debug callback.");
+            return vk::FALSE
+        }
+
+        if let Some(callback) = instance.debug_callback {
+            let callback_data = if let Some(callback_data) = unsafe { callback_data.as_ref() } {
+                callback_data
+            } else {
+                log::error!("Callback data was NULL.");
+                return vk::FALSE
+            };
 
             let message = unsafe { CStr::from_ptr(callback_data.p_message) };
             let message = message.to_string_lossy();
@@ -267,7 +276,10 @@ impl Instance {
                 vk::DebugUtilsMessageSeverityFlagsEXT::WARNING => DebugUtilsMessageSeverity::WARNING,
                 vk::DebugUtilsMessageSeverityFlagsEXT::INFO => DebugUtilsMessageSeverity::INFO,
                 vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE => DebugUtilsMessageSeverity::VERBOSE,
-                _ => panic!("invalid severity!")
+                _ => {
+                    log::error!("Invalid severity: {:?}!", severity);
+                    return vk::FALSE
+                }
             };
 
             let message_type = match type_flags {
@@ -275,7 +287,10 @@ impl Instance {
                 vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION => DebugUtilsMessageType::VALIDATION,
                 vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE => DebugUtilsMessageType::PERFORMANCE,
                 // TODO: Device address binding
-                _ => panic!("invalid message type!")
+                _ => {
+                    log::error!("Invalid message type: {:?}!", type_flags);
+                    return vk::FALSE
+                }
             };
 
             return if callback(severity, message_type, &callback_data) { vk::TRUE } else { vk::FALSE }
@@ -290,12 +305,13 @@ impl Instance {
         types: DebugUtilsMessageType,
         callback: DebugCallback,
     ) -> VklResult<()> {
-        unsafe { USER_DEBUG_CALLBACK = Some(callback) };
         let info = vk::DebugUtilsMessengerCreateInfoEXT::default()
             .message_severity(severity.into())
             .message_type(types.into())
-            .pfn_user_callback(Some(Self::debug_callback));
+            .pfn_user_callback(Some(Self::debug_callback))
+            .user_data(std::ptr::addr_of_mut!(*self) as *mut std::ffi::c_void);
         self.messenger = Some(DebugMessenger::new(self, &info)?);
+        self.debug_callback = Some(callback);
 
         Ok(())
     }
