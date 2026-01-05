@@ -698,7 +698,7 @@ pub struct Texture2d {
     image: vk::Image,
     view: Option<vk::ImageView>,
     sampler: Option<vk::Sampler>,
-    extent: vk::Extent3D,
+    extent: vk::Extent2D,
     format: vk::Format,
     bound_memory: Option<MemorySlice>,
 }
@@ -707,13 +707,13 @@ impl Texture2d {
     pub fn create(
         allocator: Arc<RefCell<Allocator>>,
         device: &Device,
-        extent: vk::Extent3D,
+        extent: vk::Extent2D,
         tiling: vk::ImageTiling,
         format: vk::Format,
         image_usage: vk::ImageUsageFlags,
     ) -> VklResult<Self> {
         let image_info = vk::ImageCreateInfo::default()
-            .extent(extent)
+            .extent(extent.into())
             .array_layers(1)
             .image_type(vk::ImageType::TYPE_2D)
             .mip_levels(1)
@@ -782,7 +782,7 @@ impl Texture2d {
         Ok(())
     }
 
-    pub fn create_depth_texture(instance: &Instance, allocator: Arc<RefCell<Allocator>>, extent: vk::Extent3D) -> VklResult<Self> {
+    pub fn create_depth_texture(instance: &Instance, allocator: Arc<RefCell<Allocator>>, extent: vk::Extent2D) -> VklResult<Self> {
         let depth_format = Self::find_depth_format(instance)
             .ok_or(VklError::Custom(
                 "No suitable depth format found".to_string().into())
