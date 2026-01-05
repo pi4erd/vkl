@@ -1,20 +1,20 @@
 #![allow(dead_code)]
 
 pub mod debug_utils;
+pub mod texture;
 pub mod alloc;
 pub mod piler;
 pub mod exts;
 
-#[allow(unused_imports)]
 pub use alloc::{
     Allocator,
     Buffer, BufferInfo, MemMap,
-    Texture2d,
 };
+
+pub use texture::Texture2d;
 
 pub type DefaultAllocator = Arc<RwLock<Allocator>>;
 
-#[allow(unused_imports)]
 pub use piler::{
     ColorBlendAttachment, ColorBlendState, GraphicsPipelineInfo, Pipeline, PipelineColorState,
     PipelineDepthStencilState, PipelineHandle, PipelineLayoutHandle, PipelineManager,
@@ -23,7 +23,6 @@ pub use piler::{
     VertexBinding, DepthState, StencilState, ComputePipelineInfo,
 };
 
-#[allow(unused_imports)]
 pub use exts::{
     DeviceExtensions, DeviceFeatures
 };
@@ -237,8 +236,7 @@ impl Instance {
     #[cfg(feature = "window")]
     pub fn create_surface(&mut self, window: Arc<winit::window::Window>) -> VklResult<()> {
         self.surface = Some(
-            Surface::new(self, window)
-                .map_err(|e| VklError::VulkanError(e))?
+            Surface::from_window(self, window)?
         );
 
         Ok(())
